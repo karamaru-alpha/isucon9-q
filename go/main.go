@@ -1092,13 +1092,13 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 			//	log.Print(err)
 			//	outputErrorMsg(w, http.StatusInternalServerError, "failed to request to shipment service")
 			//	tx.Rollback()
-			
+
 			//	return
 			//}
 
 			itemDetail.TransactionEvidenceID = transactionEvidence.ID
 			itemDetail.TransactionEvidenceStatus = transactionEvidence.Status
-			itemDetail.ShippingStatus = item.Status
+			itemDetail.ShippingStatus = shipping.Status
 		}
 
 		itemDetails = append(itemDetails, itemDetail)

@@ -18,6 +18,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
 	"github.com/jmoiron/sqlx"
+	"github.com/scylladb/go-set/i64set"
 	goji "goji.io"
 	"goji.io/pat"
 	"golang.org/x/crypto/bcrypt"
@@ -937,9 +938,38 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	userIDs := i64set.New()
+	for _, item := range items {
+		userIDs.Add(item.SellerID)
+		if item.BuyerID != 0 {
+			userIDs.Add(item.BuyerID)
+		}
+	}
+
+	q, params, err := sqlx.In(`SELECT * FROM users WHERE id IN (?)`, userIDs.List())
+	if err != nil {
+		outputErrorMsg(w, http.StatusNotFound, err.Error())
+		tx.Rollback()
+		return
+	}
+	users := make([]User, 0, userIDs.Size())
+	if err := dbx.Select(&users, dbx.Rebind(q), params...); err != nil {
+		outputErrorMsg(w, http.StatusNotFound, err.Error())
+		tx.Rollback()
+		return
+	}
+	userMap := make(map[int64]UserSimple, len(users))
+	for _, v := range users {
+		userMap[v.ID] = UserSimple{
+			ID:           v.ID,
+			AccountName:  v.AccountName,
+			NumSellItems: v.NumSellItems,
+		}
+	}
+
 	itemDetails := []ItemDetail{}
 	for _, item := range items {
-		seller, err := getUserSimpleByID(tx, item.SellerID)
+		seller := userMap[item.SellerID]
 		if err != nil {
 			outputErrorMsg(w, http.StatusNotFound, "seller not found")
 			tx.Rollback()
@@ -972,7 +1002,7 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if item.BuyerID != 0 {
-			buyer, err := getUserSimpleByID(tx, item.BuyerID)
+			buyer := userMap[item.BuyerID]
 			if err != nil {
 				outputErrorMsg(w, http.StatusNotFound, "buyer not found")
 				tx.Rollback()
@@ -1002,7 +1032,9 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 			}
 			if err != nil {
 				log.Print(err)
-				outputErrorMsg(w, http.StatusInternalServerError, "db error")
+				outputEr
+
+				rorMsg(w, http.StatusInternalServerError, "db error")
 				tx.Rollback()
 				return
 			}

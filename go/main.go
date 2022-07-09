@@ -2370,7 +2370,7 @@ func postLogin(w http.ResponseWriter, r *http.Request) {
 	session := getSession(r)
 
 	session.Values["user_id"] = u.ID
-	session.Values["csrf_token"] = secureRandomStr(20)
+	session.Values["csrf_token"] = secureRandomStr(1)
 	if err = session.Save(r, w); err != nil {
 		log.Print(err)
 

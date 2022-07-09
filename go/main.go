@@ -633,7 +633,7 @@ func getNewItems(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	buff := 100
+	buff := 50
 	buffedItems := []Item{}
 	if itemID > 0 && createdAt > 0 {
 		// paging

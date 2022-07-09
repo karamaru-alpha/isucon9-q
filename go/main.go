@@ -102,6 +102,8 @@ type Item struct {
 	CategoryID  int       `json:"category_id" db:"category_id"`
 	CreatedAt   time.Time `json:"-" db:"created_at"`
 	UpdatedAt   time.Time `json:"-" db:"updated_at"`
+
+	Seller User `json:"-" db:"seller"`
 }
 
 type ItemSimple struct {
@@ -564,7 +566,7 @@ func getNewItems(w http.ResponseWriter, r *http.Request) {
 	if itemID > 0 && createdAt > 0 {
 		// paging
 		err := dbx.Select(&items,
-			"SELECT * FROM `items` WHERE `status` IN (?,?) AND (`created_at` < ?  OR (`created_at` <= ? AND `id` < ?)) ORDER BY `created_at` DESC, `id` DESC LIMIT ?",
+			"SELECT a.*, b.id AS 'seller.id', b.account_name AS 'seller.account_name', b.num_sell_items AS 'seller.num_sell_items' FROM `items` a JOIN `users` b ON a.seller_id = b.id WHERE a.`status` IN (?,?) AND (`created_at` < ?  OR (`created_at` <= ? AND `id` < ?)) ORDER BY a.`created_at` DESC, a.`id` DESC LIMIT ?",
 			ItemStatusOnSale,
 			ItemStatusSoldOut,
 			time.Unix(createdAt, 0),
@@ -580,7 +582,7 @@ func getNewItems(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// 1st page
 		err := dbx.Select(&items,
-			"SELECT * FROM `items` WHERE `status` IN (?,?) ORDER BY `created_at` DESC, `id` DESC LIMIT ?",
+			"SELECT a.*, b.id AS 'seller.id', b.account_name AS 'seller.account_name', b.num_sell_items AS 'seller.num_sell_items' FROM `items` a JOIN `users` b ON a.seller_id = b.id WHERE a.`status` IN (?,?) ORDER BY a.`created_at` DESC, a.`id` DESC LIMIT ?",
 			ItemStatusOnSale,
 			ItemStatusSoldOut,
 			ItemsPerPage+1,
@@ -594,10 +596,10 @@ func getNewItems(w http.ResponseWriter, r *http.Request) {
 
 	itemSimples := []ItemSimple{}
 	for _, item := range items {
-		seller, err := getUserSimpleByID(dbx, item.SellerID)
-		if err != nil {
-			outputErrorMsg(w, http.StatusNotFound, "seller not found")
-			return
+		seller := UserSimple{
+			ID:           item.Seller.ID,
+			AccountName:  item.Seller.AccountName,
+			NumSellItems: item.Seller.NumSellItems,
 		}
 		category, err := getCategoryByID(dbx, item.CategoryID)
 		if err != nil {

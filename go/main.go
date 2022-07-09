@@ -64,6 +64,32 @@ const (
 var omCategoryMapByID = map[int]Category{}
 var omCategoryIDsMapByParentID = map[int][]int{}
 
+type omBuyItemT struct {
+	M sync.RWMutex
+	V map[int64]interface{}
+}
+
+var omBuyItem omBuyItemT
+
+func (o *omBuyItemT) Get(k int64) bool {
+	o.M.RLock()
+	_, ok := o.V[k]
+	o.M.RUnlock()
+	return ok
+}
+
+func (o *omBuyItemT) Set(k int64) {
+	o.M.Lock()
+	o.V[k] = struct{}{}
+	o.M.Unlock()
+}
+
+func (o *omBuyItemT) Clear(k int64) {
+	o.M.Lock()
+	delete(o.V, k)
+	o.M.Unlock()
+}
+
 var (
 	templates *template.Template
 	dbx       *sqlx.DB
@@ -392,6 +418,10 @@ func main() {
 	for _, v := range categories {
 		omCategoryMapByID[v.ID] = v
 		omCategoryIDsMapByParentID[v.ParentID] = append(omCategoryIDsMapByParentID[v.ParentID], v.ID)
+	}
+
+	omBuyItem = omBuyItemT{
+		V: map[int64]interface{}{},
 	}
 
 	log.Fatal(http.ListenAndServe(":8000", mux))
@@ -1357,6 +1387,14 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if omBuyItem.Get(rb.ItemID) {
+		outputErrorMsg(w, http.StatusForbidden, "item is not for sale")
+		return
+	}
+
+	omBuyItem.Set(rb.ItemID)
+	defer omBuyItem.Clear(rb.ItemID)
+
 	tx := dbx.MustBegin()
 
 	targetItem := Item{}
@@ -1369,7 +1407,7 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Print(err)
 
-		outputErrorMsg(w, http.StatusInternalServerError, "db error")
+		outputErrorMsg(w, http.StatusForbidden, "item is not for sale")
 		tx.Rollback()
 		return
 	}

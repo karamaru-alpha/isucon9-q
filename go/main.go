@@ -1591,12 +1591,12 @@ func postShip(w http.ResponseWriter, r *http.Request) {
 	tx := dbx.MustBegin()
 
 	item := Item{}
-	err = tx.Get(&item, "SELECT /* postBuy */ * FROM `items` WHERE `id` = ? FOR UPDATE", itemID)
-	if err == sql.ErrNoRows {
-		outputErrorMsg(w, http.StatusNotFound, "item not found")
-		tx.Rollback()
-		return
-	}
+	err = tx.Get(&item, "SELECT  * FROM `items` WHERE `id` = ? FOR UPDATE", itemID)
+	//if err == sql.ErrNoRows {
+	//	outputErrorMsg(w, http.StatusNotFound, "item not found")
+	//	tx.Rollback()
+	//	return
+	//}
 	if err != nil {
 		log.Print(err)
 		outputErrorMsg(w, http.StatusInternalServerError, "db error")

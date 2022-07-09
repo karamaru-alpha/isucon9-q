@@ -17,7 +17,6 @@ $(make kataru)
 <summary>slow-log</summary>
 
 \`\`\`
-$(make slow)
 \`\`\`
 </details>
 

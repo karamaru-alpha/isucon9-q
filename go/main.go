@@ -434,6 +434,12 @@ func main() {
 			log.Fatal(err)
 		}
 		defer l.Close()
+
+		err = os.Chmod(socket_file, 0777)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		log.Fatal(http.Serve(l, mux))
 
 	} else {

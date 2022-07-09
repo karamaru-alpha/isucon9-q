@@ -87,7 +87,7 @@ isu2:
 	#sudo systemctl restart $(APP).golang.service
 
 .PHONY: isu3
-isu1:
+isu3:
 	cd $(APP_PATH)
 	git checkout . && git clean -df .
 	git rev-parse --abbrev-ref HEAD | xargs echo "BRANCH:"

@@ -425,7 +425,7 @@ func main() {
 		V: map[int64]interface{}{},
 	}
 
-	log.Fatal(http.ListenAndServe(":8000", mux))
+	log.Fatal(http.ListenAndServe("/home/isucon/isucari/webapp/tmp/app.sock", mux))
 }
 
 func getSession(r *http.Request) *sessions.Session {

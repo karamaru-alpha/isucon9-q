@@ -59,6 +59,9 @@ const (
 	BcryptCost = 10
 )
 
+var omCategoryMapByID = map[int]Category{}
+var omCategoryIDsMapByParentID = map[int][]int{}
+
 var (
 	templates *template.Template
 	dbx       *sqlx.DB
@@ -319,6 +322,13 @@ func main() {
 	}
 	defer dbx.Close()
 
+	for {
+		if err := dbx.Ping(); err == nil {
+			break
+		}
+		time.Sleep(time.Second * 1)
+	}
+
 	mux := goji.NewMux()
 
 	// API
@@ -356,6 +366,17 @@ func main() {
 	mux.HandleFunc(pat.Get("/users/setting"), getIndex)
 	// Assets
 	mux.Handle(pat.Get("/*"), http.FileServer(http.Dir("../public")))
+
+	categories := make([]Category, 0)
+	if err := dbx.Select(&categories, "SELECT * FROM categories"); err != nil {
+		log.Print(err)
+		return
+	}
+	for _, v := range categories {
+		omCategoryMapByID[v.ID] = v
+		omCategoryIDsMapByParentID[v.ParentID] = append(omCategoryIDsMapByParentID[v.ParentID], v.ID)
+	}
+
 	log.Fatal(http.ListenAndServe(":8000", mux))
 }
 
@@ -408,7 +429,7 @@ func getUserSimpleByID(q sqlx.Queryer, userID int64) (userSimple UserSimple, err
 }
 
 func getCategoryByID(q sqlx.Queryer, categoryID int) (category Category, err error) {
-	err = sqlx.Get(q, &category, "SELECT * FROM `categories` WHERE `id` = ?", categoryID)
+	category = omCategoryMapByID[categoryID]
 	if category.ParentID != 0 {
 		parentCategory, err := getCategoryByID(q, category.ParentID)
 		if err != nil {
@@ -489,6 +510,19 @@ func postInitialize(w http.ResponseWriter, r *http.Request) {
 		log.Print(err)
 		outputErrorMsg(w, http.StatusInternalServerError, "db error")
 		return
+	}
+
+	categories := make([]Category, 0)
+	if err := dbx.Select(&categories, "SELECT * FROM categories"); err != nil {
+		log.Print(err)
+		outputErrorMsg(w, http.StatusInternalServerError, "db error")
+		return
+	}
+	omCategoryMapByID = map[int]Category{}
+	omCategoryIDsMapByParentID = map[int][]int{}
+	for _, v := range categories {
+		omCategoryMapByID[v.ID] = v
+		omCategoryIDsMapByParentID[v.ParentID] = append(omCategoryIDsMapByParentID[v.ParentID], v.ID)
 	}
 
 	res := resInitialize{
@@ -612,13 +646,14 @@ func getNewCategoryItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var categoryIDs []int
-	err = dbx.Select(&categoryIDs, "SELECT id FROM `categories` WHERE parent_id=?", rootCategory.ID)
-	if err != nil {
-		log.Print(err)
-		outputErrorMsg(w, http.StatusInternalServerError, "db error")
-		return
-	}
+	categoryIDs := omCategoryIDsMapByParentID[rootCategory.ID]
+	
+	//err = dbx.Select(&categoryIDs, "SELECT id FROM `categories` WHERE parent_id=?", rootCategory.ID)
+	//if err != nil {
+	//	log.Print(err)
+	//	outputErrorMsg(w, http.StatusInternalServerError, "db error")
+	//	return
+	//}
 
 	query := r.URL.Query()
 	itemIDStr := query.Get("item_id")
@@ -2142,14 +2177,12 @@ func getSettings(w http.ResponseWriter, r *http.Request) {
 
 	ress.PaymentServiceURL = getPaymentServiceURL()
 
-	categories := []Category{}
+	categories := make([]Category, 0, len(omCategoryMapByID))
 
-	err := dbx.Select(&categories, "SELECT * FROM `categories`")
-	if err != nil {
-		log.Print(err)
-		outputErrorMsg(w, http.StatusInternalServerError, "db error")
-		return
+	for _, v := range omCategoryMapByID {
+		categories = append(categories, v)
 	}
+
 	ress.Categories = categories
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")

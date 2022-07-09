@@ -1359,6 +1359,13 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 
 	tx := dbx.MustBegin()
 
+	if _, err := tx.Exec("SELECT GET_LOCK(?, 5)", rb.ItemID); err != nil {
+		outputErrorMsg(w, http.StatusInternalServerError, "db error")
+		tx.Rollback()
+		return
+	}
+	defer tx.Exec("SELECT RELEASE_LOCK(?)", rb.ItemID)
+
 	targetItem := Item{}
 	err = tx.Get(&targetItem, "SELECT * FROM `items` WHERE `id` = ? FOR UPDATE", rb.ItemID)
 	if err == sql.ErrNoRows {

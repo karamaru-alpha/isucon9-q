@@ -18,6 +18,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
 	"github.com/jmoiron/sqlx"
+	"github.com/scylladb/go-set/i64set"
 	goji "goji.io"
 	"goji.io/pat"
 	"golang.org/x/crypto/bcrypt"
@@ -101,6 +102,8 @@ type Item struct {
 	CategoryID  int       `json:"category_id" db:"category_id"`
 	CreatedAt   time.Time `json:"-" db:"created_at"`
 	UpdatedAt   time.Time `json:"-" db:"updated_at"`
+
+	Seller User `json:"-" db:"seller"`
 }
 
 type ItemSimple struct {
@@ -282,6 +285,16 @@ func init() {
 }
 
 func main() {
+
+	log.SetFlags(log.Lshortfile)
+	logfile, err := os.OpenFile("/var/log/go.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		panic("cannnot open test.log:" + err.Error())
+	}
+	defer logfile.Close()
+	log.SetOutput(logfile)
+	log.Print("main")
+
 	host := os.Getenv("MYSQL_HOST")
 	if host == "" {
 		host = "127.0.0.1"
@@ -290,7 +303,7 @@ func main() {
 	if port == "" {
 		port = "3306"
 	}
-	_, err := strconv.Atoi(port)
+	_, err = strconv.Atoi(port)
 	if err != nil {
 		log.Fatalf("failed to read DB port number from an environment variable MYSQL_PORT.\nError: %s", err.Error())
 	}
@@ -563,7 +576,7 @@ func getNewItems(w http.ResponseWriter, r *http.Request) {
 	if itemID > 0 && createdAt > 0 {
 		// paging
 		err := dbx.Select(&items,
-			"SELECT * FROM `items` WHERE `status` IN (?,?) AND (`created_at` < ?  OR (`created_at` <= ? AND `id` < ?)) ORDER BY `created_at` DESC, `id` DESC LIMIT ?",
+			"SELECT a.*, b.id AS 'seller.id', b.account_name AS 'seller.account_name', b.num_sell_items AS 'seller.num_sell_items' FROM `items` a JOIN `users` b ON a.seller_id = b.id WHERE a.`status` IN (?,?) AND (a.`created_at` < ?  OR (a.`created_at` <= ? AND a.`id` < ?)) ORDER BY a.`created_at` DESC, a.`id` DESC LIMIT ?",
 			ItemStatusOnSale,
 			ItemStatusSoldOut,
 			time.Unix(createdAt, 0),
@@ -579,7 +592,7 @@ func getNewItems(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// 1st page
 		err := dbx.Select(&items,
-			"SELECT * FROM `items` WHERE `status` IN (?,?) ORDER BY `created_at` DESC, `id` DESC LIMIT ?",
+			"SELECT a.*, b.id AS 'seller.id', b.account_name AS 'seller.account_name', b.num_sell_items AS 'seller.num_sell_items' FROM `items` a JOIN `users` b ON a.seller_id = b.id WHERE a.`status` IN (?,?) ORDER BY a.`created_at` DESC, a.`id` DESC LIMIT ?",
 			ItemStatusOnSale,
 			ItemStatusSoldOut,
 			ItemsPerPage+1,
@@ -593,10 +606,10 @@ func getNewItems(w http.ResponseWriter, r *http.Request) {
 
 	itemSimples := []ItemSimple{}
 	for _, item := range items {
-		seller, err := getUserSimpleByID(dbx, item.SellerID)
-		if err != nil {
-			outputErrorMsg(w, http.StatusNotFound, "seller not found")
-			return
+		seller := UserSimple{
+			ID:           item.Seller.ID,
+			AccountName:  item.Seller.AccountName,
+			NumSellItems: item.Seller.NumSellItems,
 		}
 		category, err := getCategoryByID(dbx, item.CategoryID)
 		if err != nil {
@@ -681,7 +694,7 @@ func getNewCategoryItems(w http.ResponseWriter, r *http.Request) {
 	if itemID > 0 && createdAt > 0 {
 		// paging
 		inQuery, inArgs, err = sqlx.In(
-			"SELECT * FROM `items` WHERE `status` IN (?,?) AND category_id IN (?) AND (`created_at` < ?  OR (`created_at` <= ? AND `id` < ?)) ORDER BY `created_at` DESC, `id` DESC LIMIT ?",
+			"SELECT a.*, b.id AS 'seller.id', b.account_name AS 'seller.account_name', b.num_sell_items AS 'seller.num_sell_items' FROM `items` a JOIN `users` b ON a.seller_id = b.id WHERE a.`status` IN (?,?) AND a.category_id IN (?) AND (a.`created_at` < ?  OR (a.`created_at` <= ? AND a.`id` < ?)) ORDER BY a.`created_at` DESC, a.`id` DESC LIMIT ?",
 			ItemStatusOnSale,
 			ItemStatusSoldOut,
 			categoryIDs,
@@ -698,7 +711,7 @@ func getNewCategoryItems(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// 1st page
 		inQuery, inArgs, err = sqlx.In(
-			"SELECT * FROM `items` WHERE `status` IN (?,?) AND category_id IN (?) ORDER BY created_at DESC, id DESC LIMIT ?",
+			"SELECT a.*, b.id AS 'seller.id', b.account_name AS 'seller.account_name', b.num_sell_items AS 'seller.num_sell_items' FROM `items` a JOIN `users` b ON a.seller_id = b.id WHERE a.`status` IN (?,?) AND a.category_id IN (?) ORDER BY a.created_at DESC, a.id DESC LIMIT ?",
 			ItemStatusOnSale,
 			ItemStatusSoldOut,
 			categoryIDs,
@@ -722,10 +735,10 @@ func getNewCategoryItems(w http.ResponseWriter, r *http.Request) {
 
 	itemSimples := []ItemSimple{}
 	for _, item := range items {
-		seller, err := getUserSimpleByID(dbx, item.SellerID)
-		if err != nil {
-			outputErrorMsg(w, http.StatusNotFound, "seller not found")
-			return
+		seller := UserSimple{
+			ID:           item.Seller.ID,
+			AccountName:  item.Seller.AccountName,
+			NumSellItems: item.Seller.NumSellItems,
 		}
 		category, err := getCategoryByID(dbx, item.CategoryID)
 		if err != nil {
@@ -937,9 +950,38 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	userIDs := i64set.New()
+	for _, item := range items {
+		userIDs.Add(item.SellerID)
+		if item.BuyerID != 0 {
+			userIDs.Add(item.BuyerID)
+		}
+	}
+
+	q, params, err := sqlx.In(`SELECT * FROM users WHERE id IN (?)`, userIDs.List())
+	if err != nil {
+		outputErrorMsg(w, http.StatusNotFound, err.Error())
+		tx.Rollback()
+		return
+	}
+	users := make([]User, 0, userIDs.Size())
+	if err := dbx.Select(&users, dbx.Rebind(q), params...); err != nil {
+		outputErrorMsg(w, http.StatusNotFound, err.Error())
+		tx.Rollback()
+		return
+	}
+	userMap := make(map[int64]UserSimple, len(users))
+	for _, v := range users {
+		userMap[v.ID] = UserSimple{
+			ID:           v.ID,
+			AccountName:  v.AccountName,
+			NumSellItems: v.NumSellItems,
+		}
+	}
+
 	itemDetails := []ItemDetail{}
 	for _, item := range items {
-		seller, err := getUserSimpleByID(tx, item.SellerID)
+		seller := userMap[item.SellerID]
 		if err != nil {
 			outputErrorMsg(w, http.StatusNotFound, "seller not found")
 			tx.Rollback()
@@ -972,7 +1014,7 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if item.BuyerID != 0 {
-			buyer, err := getUserSimpleByID(tx, item.BuyerID)
+			buyer := userMap[item.BuyerID]
 			if err != nil {
 				outputErrorMsg(w, http.StatusNotFound, "buyer not found")
 				tx.Rollback()

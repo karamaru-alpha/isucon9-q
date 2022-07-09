@@ -60,8 +60,8 @@ isu1:
 	(cd $(GO_PATH) && go build -o $(APP))
 	sudo rm -f $(NGINX_LOG)
 	sudo rm -f $(NGINX_ERR)
-	#sudo rm -f $(MYSQL_LOG)
-	#sudo rm -f $(MYSQL_ERR)
+	sudo rm -f $(MYSQL_LOG)
+	sudo rm -f $(MYSQL_ERR)
 	sudo cp /dev/null $(GO_LOG)
 	sudo systemctl restart nginx
 	#sudo systemctl restart mysql

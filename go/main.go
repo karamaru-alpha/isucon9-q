@@ -1592,14 +1592,14 @@ func postShip(w http.ResponseWriter, r *http.Request) {
 
 	item := Item{}
 	err = tx.Get(&item, "SELECT  * FROM `items` WHERE `id` = ? FOR UPDATE", itemID)
-	//if err == sql.ErrNoRows {
-	//	outputErrorMsg(w, http.StatusNotFound, "item not found")
-	//	tx.Rollback()
-	//	return
-	//}
+	if err == sql.ErrNoRows {
+		outputErrorMsg(w, http.StatusNotFound, "item not found")
+		tx.Rollback()
+		return
+	}
 	if err != nil {
 		log.Print(err)
-		outputErrorMsg(w, http.StatusInternalServerError, "db error")
+		outputErrorMsg(w, http.StatusForbidden, "商品が取引中ではありません")
 		tx.Rollback()
 		return
 	}

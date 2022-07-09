@@ -3,11 +3,11 @@ package main
 import (
 	crand "crypto/rand"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/goccy/go-json"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
@@ -424,7 +426,25 @@ func main() {
 		V: map[int64]interface{}{},
 	}
 
-	log.Fatal(http.ListenAndServe(":8000", mux))
+	if os.Getenv("ISU") == "1" {
+		socket_file := "/home/isucon/isucari/webapp/tmp/app.sock"
+		os.Remove(socket_file)
+		l, err := net.Listen("unix", socket_file)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer l.Close()
+
+		err = os.Chmod(socket_file, 0777)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.Fatal(http.Serve(l, mux))
+
+	} else {
+		log.Fatal(http.ListenAndServe(":8000", mux))
+	}
 }
 
 func getSession(r *http.Request) *sessions.Session {

@@ -647,7 +647,7 @@ func getNewCategoryItems(w http.ResponseWriter, r *http.Request) {
 	}
 
 	categoryIDs := omCategoryIDsMapByParentID[rootCategory.ID]
-	
+
 	//err = dbx.Select(&categoryIDs, "SELECT id FROM `categories` WHERE parent_id=?", rootCategory.ID)
 	//if err != nil {
 	//	log.Print(err)
@@ -924,7 +924,8 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// 1st page
 		err := tx.Select(&items,
-			"SELECT * FROM `items` WHERE (`seller_id` = ? OR `buyer_id` = ?) ORDER BY `created_at` DESC, `id` DESC LIMIT ?",
+			"SELECT * FROM `items` WHERE `seller_id` = ? UNION SELEC"+
+				"T * FROM `items` WHERE `buyer_id` = ? ORDER BY `created_at` DESC, `id` DESC LIMIT ?",
 			user.ID,
 			user.ID,
 			TransactionsPerPage+1,

@@ -440,9 +440,11 @@ func main() {
 			log.Fatal(err)
 		}
 
+		log.Println("serve on unix!")
 		log.Fatal(http.Serve(l, mux))
 
 	} else {
+		log.Println("serve on :8000")
 		log.Fatal(http.ListenAndServe(":8000", mux))
 	}
 }

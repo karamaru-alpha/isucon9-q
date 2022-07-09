@@ -1359,8 +1359,9 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 
 	tx := dbx.MustBegin()
 
-	if _, err := tx.Exec("SELECT GET_LOCK(?, 5)", rb.ItemID); err != nil {
-		outputErrorMsg(w, http.StatusInternalServerError, "db error")
+	if _, err := tx.Exec("SELECT GET_LOCK(?, 1)", rb.ItemID); err != nil {
+		outputErrorMsg(w, http.StatusForbidden, "item is not for sale")
+		
 		tx.Rollback()
 		return
 	}

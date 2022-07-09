@@ -488,16 +488,21 @@ func getCategoryByID(q sqlx.Queryer, categoryID int) (category Category, err err
 }
 
 func getConfigByName(name string) (string, error) {
-	config := Config{}
-	err := dbx.Get(&config, "SELECT * FROM `configs` WHERE `name` = ?", name)
-	if err == sql.ErrNoRows {
-		return "", nil
+	if name == "payment_service_url" {
+		return "http://localhost:5555", nil
+	} else {
+		return "http://localhost:7000", nil
 	}
-	if err != nil {
-		log.Print(err)
-		return "", err
-	}
-	return config.Val, err
+	//config := Config{}
+	//err := dbx.Get(&config, "SELECT * FROM `configs` WHERE `name` = ?", name)
+	//if err == sql.ErrNoRows {
+	//	return "", nil
+	//}
+	//if err != nil {
+	//	log.Print(err)
+	//	return "", err
+	//}
+	//return config.Val, err
 }
 
 func getPaymentServiceURL() string {

@@ -97,4 +97,4 @@ log-sql:
 
 .PHONY: bench
 bench:
-	(cd .. && ./bin/benchmarker)
+	(cd .. && ./bin/benchmarker -target-url "http://127.0.0.1:8080")

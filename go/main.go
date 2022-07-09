@@ -1387,15 +1387,16 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tx := dbx.MustBegin()
+
 	if omBuyItem.Get(rb.ItemID) {
 		outputErrorMsg(w, http.StatusForbidden, "item is not for sale")
+		tx.Rollback()
 		return
 	}
 
 	omBuyItem.Set(rb.ItemID)
 	defer omBuyItem.Clear(rb.ItemID)
-
-	tx := dbx.MustBegin()
 
 	targetItem := Item{}
 	err = tx.Get(&targetItem, "SELECT * FROM `items` WHERE `id` = ? FOR UPDATE", rb.ItemID)

@@ -1032,9 +1032,7 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 			}
 			if err != nil {
 				log.Print(err)
-				outputEr
-
-				rorMsg(w, http.StatusInternalServerError, "db error")
+				outputErrorMsg(w, http.StatusInternalServerError, "db error")
 				tx.Rollback()
 				return
 			}

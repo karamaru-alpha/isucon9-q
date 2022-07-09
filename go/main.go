@@ -576,7 +576,7 @@ func getNewItems(w http.ResponseWriter, r *http.Request) {
 	if itemID > 0 && createdAt > 0 {
 		// paging
 		err := dbx.Select(&items,
-			"SELECT a.*, b.id AS 'seller.id', b.account_name AS 'seller.account_name', b.num_sell_items AS 'seller.num_sell_items' FROM `items` a JOIN `users` b ON a.seller_id = b.id WHERE a.`status` IN (?,?) AND (`created_at` < ?  OR (`created_at` <= ? AND `id` < ?)) ORDER BY a.`created_at` DESC, a.`id` DESC LIMIT ?",
+			"SELECT a.*, b.id AS 'seller.id', b.account_name AS 'seller.account_name', b.num_sell_items AS 'seller.num_sell_items' FROM `items` a JOIN `users` b ON a.seller_id = b.id WHERE a.`status` IN (?,?) AND (`created_at` < ?  OR (a.`created_at` <= ? AND a.`id` < ?)) ORDER BY a.`created_at` DESC, a.`id` DESC LIMIT ?",
 			ItemStatusOnSale,
 			ItemStatusSoldOut,
 			time.Unix(createdAt, 0),

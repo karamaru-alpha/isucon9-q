@@ -286,6 +286,9 @@ func init() {
 }
 
 func main() {
+	http.DefaultTransport.(*http.Transport).MaxIdleConns = 0
+	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 1024
+	http.DefaultTransport.(*http.Transport).ForceAttemptHTTP2 = true
 
 	log.SetFlags(log.Lshortfile)
 	logfile, err := os.OpenFile("/var/log/go.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)

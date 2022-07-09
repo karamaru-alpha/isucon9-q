@@ -1493,6 +1493,14 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	wg.Wait()
+	if err != nil {
+		log.Print(err)
+
+		outputErrorMsg(w, http.StatusInternalServerError, err.Error())
+		tx.Rollback()
+		return
+	}
+
 	if pstr.Status == "invalid" {
 		outputErrorMsg(w, http.StatusBadRequest, "カード情報に誤りがあります")
 		tx.Rollback()

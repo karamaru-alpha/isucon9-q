@@ -892,7 +892,6 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 			"SELECT * FROM `items` WHERE (`seller_id` = ? OR `buyer_id` = ?) ORDER BY `created_at` DESC, `id` DESC LIMIT ?",
 			user.ID,
 			user.ID,
-			
 			TransactionsPerPage+1,
 		)
 		if err != nil {

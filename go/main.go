@@ -1359,14 +1359,6 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 
 	tx := dbx.MustBegin()
 
-	if _, err := tx.Exec("SELECT GET_LOCK(?, 1)", rb.ItemID); err != nil {
-		outputErrorMsg(w, http.StatusForbidden, "item is not for sale")
-		
-		tx.Rollback()
-		return
-	}
-	defer tx.Exec("SELECT RELEASE_LOCK(?)", rb.ItemID)
-
 	targetItem := Item{}
 	err = tx.Get(&targetItem, "SELECT * FROM `items` WHERE `id` = ? FOR UPDATE", rb.ItemID)
 	if err == sql.ErrNoRows {
@@ -1377,7 +1369,7 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Print(err)
 
-		outputErrorMsg(w, http.StatusInternalServerError, "db error")
+		outputErrorMsg(w, http.StatusForbidden, "item is not for sale")
 		tx.Rollback()
 		return
 	}

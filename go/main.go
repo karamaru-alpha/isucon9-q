@@ -443,6 +443,7 @@ func main() {
 		log.Fatal(http.Serve(l, mux))
 
 	} else {
+		log.Println("serve on :8000")
 		log.Fatal(http.ListenAndServe(":8000", mux))
 	}
 }

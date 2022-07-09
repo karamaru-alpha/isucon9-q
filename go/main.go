@@ -633,17 +633,16 @@ func getNewItems(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	items := []Item{}
+	buff := 10
+	buffedItems := []Item{}
 	if itemID > 0 && createdAt > 0 {
 		// paging
-		err := dbx.Select(&items,
-			"SELECT a.*, b.id AS 'seller.id', b.account_name AS 'seller.account_name', b.num_sell_items AS 'seller.num_sell_items' FROM `items` a JOIN `users` b ON a.seller_id = b.id WHERE a.`status` IN (?,?) AND (a.`created_at` < ?  OR (a.`created_at` <= ? AND a.`id` < ?)) ORDER BY a.`created_at` DESC, a.`id` DESC LIMIT ?",
-			ItemStatusOnSale,
-			ItemStatusSoldOut,
+		err := dbx.Select(&buffedItems,
+			"SELECT a.*, b.id AS 'seller.id', b.account_name AS 'seller.account_name', b.num_sell_items AS 'seller.num_sell_items' FROM `items` a JOIN `users` b ON a.seller_id = b.id WHERE a.`created_at` < ?  OR (a.`created_at` <= ? AND a.`id` < ?) ORDER BY a.`created_at` DESC, a.`id` DESC LIMIT ?",
 			time.Unix(createdAt, 0),
 			time.Unix(createdAt, 0),
 			itemID,
-			ItemsPerPage+1,
+			ItemsPerPage+1+buff,
 		)
 		if err != nil {
 			log.Print(err)
@@ -652,16 +651,24 @@ func getNewItems(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// 1st page
-		err := dbx.Select(&items,
-			"SELECT a.*, b.id AS 'seller.id', b.account_name AS 'seller.account_name', b.num_sell_items AS 'seller.num_sell_items' FROM `items` a JOIN `users` b ON a.seller_id = b.id WHERE a.`status` IN (?,?) ORDER BY a.`created_at` DESC, a.`id` DESC LIMIT ?",
-			ItemStatusOnSale,
-			ItemStatusSoldOut,
-			ItemsPerPage+1,
+		err := dbx.Select(&buffedItems,
+			"SELECT a.*, b.id AS 'seller.id', b.account_name AS 'seller.account_name', b.num_sell_items AS 'seller.num_sell_items' FROM `items` a JOIN `users` b ON a.seller_id = b.id ORDER BY a.`created_at` DESC, a.`id` DESC LIMIT ?",
+			ItemsPerPage+1+buff,
 		)
 		if err != nil {
 			log.Print(err)
 			outputErrorMsg(w, http.StatusInternalServerError, "db error")
 			return
+		}
+	}
+
+	items := make([]Item, 0, ItemsPerPage+1)
+	for _, v := range buffedItems {
+		if v.Status == ItemStatusOnSale || v.Status == ItemStatusSoldOut {
+			items = append(items, v)
+		}
+		if len(items) == ItemsPerPage+1 {
+			break
 		}
 	}
 

@@ -366,7 +366,7 @@ func main() {
 		log.Fatalf("failed to connect to DB: %s.", err.Error())
 	}
 	defer dbx.Close()
-	const SQL_CONN_COUNT = 20
+	const SQL_CONN_COUNT = 40
 	dbx.SetMaxOpenConns(SQL_CONN_COUNT)
 	dbx.SetMaxIdleConns(SQL_CONN_COUNT)
 	dbx.SetConnMaxLifetime(SQL_CONN_COUNT * time.Second)

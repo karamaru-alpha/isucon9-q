@@ -757,18 +757,19 @@ func getNewCategoryItems(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	buff := 50
 	var inQuery string
 	var inArgs []interface{}
 	if itemID > 0 && createdAt > 0 {
 		// paging
 		inQuery, inArgs, err = sqlx.In(
-			"SELECT a.*, b.id AS 'seller.id', b.account_name AS 'seller.account_name', b.num_sell_items AS 'seller.num_sell_items' FROM `items` a JOIN `users` b ON a.seller_id = b.id WHERE a.category_id IN (?) AND (a.`created_at` < ?  OR (a.`created_at` <= ? AND a.`id` < ?)) ORDER BY a.`created_at` DESC, a.`id` DESC LIMIT ?",
+			"SELECT a.*, b.id AS 'seller.id', b.account_name AS 'seller.account_name', b.num_sell_items AS 'seller.num_sell_items' FROM `items` a JOIN `users` b ON a.seller_id = b.id WHERE a.`status` IN (?,?) AND a.category_id IN (?) AND (a.`created_at` < ?  OR (a.`created_at` <= ? AND a.`id` < ?)) ORDER BY a.`created_at` DESC, a.`id` DESC LIMIT ?",
+			ItemStatusOnSale,
+			ItemStatusSoldOut,
 			categoryIDs,
 			time.Unix(createdAt, 0),
 			time.Unix(createdAt, 0),
 			itemID,
-			ItemsPerPage+1+buff,
+			ItemsPerPage+1,
 		)
 		if err != nil {
 			log.Print(err)
@@ -778,9 +779,11 @@ func getNewCategoryItems(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// 1st page
 		inQuery, inArgs, err = sqlx.In(
-			"SELECT a.*, b.id AS 'seller.id', b.account_name AS 'seller.account_name', b.num_sell_items AS 'seller.num_sell_items' FROM `items` a JOIN `users` b ON a.seller_id = b.id WHERE a.category_id IN (?) ORDER BY a.created_at DESC, a.id DESC LIMIT ?",
+			"SELECT a.*, b.id AS 'seller.id', b.account_name AS 'seller.account_name', b.num_sell_items AS 'seller.num_sell_items' FROM `items` a JOIN `users` b ON a.seller_id = b.id WHERE a.`status` IN (?,?) AND a.category_id IN (?) ORDER BY a.created_at DESC, a.id DESC LIMIT ?",
+			ItemStatusOnSale,
+			ItemStatusSoldOut,
 			categoryIDs,
-			ItemsPerPage+1+buff,
+			ItemsPerPage+1,
 		)
 		if err != nil {
 			log.Print(err)
@@ -789,18 +792,8 @@ func getNewCategoryItems(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	buffedItems := []Item{}
-	err = dbx.Select(&buffedItems, inQuery, inArgs...)
-
-	items := make([]Item, 0, ItemsPerPage+1)
-	for _, v := range buffedItems {
-		if v.Status == ItemStatusOnSale || v.Status == ItemStatusSoldOut {
-			items = append(items, v)
-		}
-		if len(items) == ItemsPerPage+1 {
-			break
-		}
-	}
+	items := []Item{}
+	err = dbx.Select(&items, inQuery, inArgs...)
 
 	if err != nil {
 		log.Print(err)

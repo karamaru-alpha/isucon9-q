@@ -76,15 +76,15 @@ isu2:
 	sudo cp my.cnf /etc/mysql/my.cnf
 	#sudo cp nginx.conf /etc/nginx/nginx.conf
 	#sudo cp $(APP).conf /etc/nginx/sites-enabled/$(APP).conf
-	#(cd $(GO_PATH) && go build -o $(APP))
+	(cd $(GO_PATH) && go build -o $(APP))
 	#sudo rm -f $(NGINX_LOG)
 	#sudo rm -f $(NGINX_ERR)
 	sudo rm -f $(MYSQL_LOG)
 	sudo rm -f $(MYSQL_ERR)
-	#sudo cp /dev/null $(GO_LOG)
+	sudo cp /dev/null $(GO_LOG)
 	#sudo systemctl restart nginx
 	sudo systemctl restart mysql
-	#sudo systemctl restart $(APP).golang.service
+	sudo systemctl restart $(APP).golang.service
 
 .PHONY: isu3
 isu3:
